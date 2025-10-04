@@ -36,11 +36,11 @@ if "process_data" not in st.session_state or reset_btn:
     ]
     st.session_state.ready_queue = []
     st.session_state.current_time = 0
-    st.session_state.history_snapshots = []  # <-- save ready queue snapshots
+    st.session_state.history_log = []  # Scrollable history log
     st.session_state.running = False
 
 # ------------------ Layout ------------------
-col1, col2 = st.columns([1, 2])
+col1, col2, col3 = st.columns([1, 2, 1])
 
 with col1:
     st.subheader("Processes")
@@ -49,7 +49,8 @@ with col1:
 with col2:
     st.subheader("CPU")
     cpu_container = st.empty()
-    st.subheader("History Log (Ready Queue Snapshots)")
+    st.subheader("History Log")
+    # Scrollable container
     history_container = st.empty()
 
 # ------------------ Helper Functions ------------------
@@ -59,16 +60,6 @@ def render_processes():
         html += f"<div style='color:{p['color']};margin-bottom:5px;'>"
         html += f"{p['id']} | BT: {p['remaining_time']} | AT: {p['arrival_time']} | WT: {p['waiting_time']}</div>"
     process_container.markdown(html, unsafe_allow_html=True)
-
-def render_ready_queue_snapshot():
-    """Show all past ready queue states below CPU"""
-    html = ""
-    for snapshot in st.session_state.history_snapshots:
-        html += "<div style='margin-bottom:5px;'>"
-        for p in snapshot:
-            html += f"<span style='display:inline-block;margin-right:5px;padding:3px 6px;background:{p['color']};color:white;border-radius:5px'>{p['id']}</span>"
-        html += "</div>"
-    history_container.markdown(html, unsafe_allow_html=True)
 
 def render_cpu(process=None):
     if process:
@@ -82,6 +73,13 @@ def render_cpu(process=None):
             unsafe_allow_html=True,
         )
 
+def render_history():
+    html = "<div style='height:300px;overflow-y:scroll;border:1px solid #555;padding:5px;background:#111;'>"
+    for entry in st.session_state.history_log:
+        html += f"<div style='color:#e0e0e0;margin-bottom:5px;'>{entry}</div>"
+    html += "</div>"
+    history_container.markdown(html, unsafe_allow_html=True)
+
 # ------------------ Simulation ------------------
 if start_btn and not st.session_state.running:
     st.session_state.running = True
@@ -91,12 +89,13 @@ if start_btn and not st.session_state.running:
             if not p["has_arrived"] and p["arrival_time"] <= st.session_state.current_time:
                 p["has_arrived"] = True
                 st.session_state.ready_queue.append(p)
+                st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {p['id']} arrived in Ready Queue.")
 
         # Take next process
         if st.session_state.ready_queue:
             current_process = st.session_state.ready_queue.pop(0)
+            st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {current_process['id']} moved to CPU.")
 
-            # Execute in CPU
             time_to_run = min(current_process["remaining_time"], time_quantum)
             for _ in range(time_to_run):
                 current_process["remaining_time"] -= 1
@@ -111,26 +110,27 @@ if start_btn and not st.session_state.running:
                     if not p["has_arrived"] and p["arrival_time"] <= st.session_state.current_time:
                         p["has_arrived"] = True
                         st.session_state.ready_queue.append(p)
-
-                # Save snapshot for history log
-                st.session_state.history_snapshots.append(list(st.session_state.ready_queue))
+                        st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {p['id']} arrived in Ready Queue.")
 
                 # Render
                 render_processes()
                 render_cpu(current_process)
-                render_ready_queue_snapshot()
+                render_history()
                 time.sleep(0.5)
 
-            # Post-execution
+            # Post execution
             if current_process["remaining_time"] > 0:
                 st.session_state.ready_queue.append(current_process)
+                st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {current_process['id']} returned to Ready Queue.")
+            else:
+                st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {current_process['id']} finished execution.")
 
         else:
             # CPU idle
             st.session_state.current_time += 1
             render_cpu(None)
             render_processes()
-            render_ready_queue_snapshot()
+            render_history()
             time.sleep(0.5)
 
     st.session_state.running = False
