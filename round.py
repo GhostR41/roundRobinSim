@@ -31,7 +31,13 @@ processes = [
 # ------------------ Initialize State ------------------
 if "process_data" not in st.session_state or reset_btn:
     st.session_state.process_data = [
-        {**p, "remaining_time": p["burst_time"], "waiting_time": 0, "has_arrived": False}
+        {
+            **p,
+            "remaining_time": p["burst_time"],
+            "waiting_time": 0,
+            "has_arrived": False,
+            "completion_time": 0
+        }
         for p in processes
     ]
     st.session_state.ready_queue = []
@@ -49,9 +55,14 @@ with col1:
 with col2:
     st.subheader("CPU")
     cpu_container = st.empty()
+    st.subheader("Ready Queue")
+    ready_queue_container = st.empty()
     st.subheader("History Log")
-    # Scrollable container
     history_container = st.empty()
+
+with col3:
+    st.subheader("Statistics")
+    stats_container = st.empty()
 
 # ------------------ Helper Functions ------------------
 def render_processes():
@@ -73,12 +84,34 @@ def render_cpu(process=None):
             unsafe_allow_html=True,
         )
 
+def render_ready_queue():
+    html = ""
+    for p in st.session_state.ready_queue:
+        html += f"<span style='display:inline-block;margin-right:5px;padding:5px;background:{p['color']};color:white;border-radius:5px'>{p['id']}</span>"
+    ready_queue_container.markdown(html, unsafe_allow_html=True)
+
 def render_history():
     html = "<div style='height:300px;overflow-y:scroll;border:1px solid #555;padding:5px;background:#111;'>"
     for entry in st.session_state.history_log:
         html += f"<div style='color:#e0e0e0;margin-bottom:5px;'>{entry}</div>"
     html += "</div>"
     history_container.markdown(html, unsafe_allow_html=True)
+
+def render_stats():
+    total_wt = sum(p['waiting_time'] for p in st.session_state.process_data)
+    total_tat = sum((p['completion_time'] - p['arrival_time']) for p in st.session_state.process_data)
+    n = len(st.session_state.process_data)
+    avg_wt = total_wt / n
+    avg_tat = total_tat / n
+    html = f"""
+    <div style='color:#00ffff'>
+        <p>Total Waiting Time: {total_wt}</p>
+        <p>Average Waiting Time: {avg_wt:.2f}</p>
+        <p>Total Turnaround Time: {total_tat}</p>
+        <p>Average Turnaround Time: {avg_tat:.2f}</p>
+    </div>
+    """
+    stats_container.markdown(html, unsafe_allow_html=True)
 
 # ------------------ Simulation ------------------
 if start_btn and not st.session_state.running:
@@ -115,7 +148,9 @@ if start_btn and not st.session_state.running:
                 # Render
                 render_processes()
                 render_cpu(current_process)
+                render_ready_queue()
                 render_history()
+                render_stats()
                 time.sleep(0.5)
 
             # Post execution
@@ -123,6 +158,7 @@ if start_btn and not st.session_state.running:
                 st.session_state.ready_queue.append(current_process)
                 st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {current_process['id']} returned to Ready Queue.")
             else:
+                current_process['completion_time'] = st.session_state.current_time
                 st.session_state.history_log.append(f"[Time {st.session_state.current_time}] {current_process['id']} finished execution.")
 
         else:
@@ -130,7 +166,9 @@ if start_btn and not st.session_state.running:
             st.session_state.current_time += 1
             render_cpu(None)
             render_processes()
+            render_ready_queue()
             render_history()
+            render_stats()
             time.sleep(0.5)
 
     st.session_state.running = False
