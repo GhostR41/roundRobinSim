@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 
-# ------------------ Hero Section ------------------
+#Hero Section
 st.markdown(
     """
     <div style='background-color:#0a0a0a;padding:30px;border-radius:10px;text-align:center'>
@@ -14,13 +14,13 @@ st.markdown(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ------------------ Sidebar Controls ------------------
+#Sidebar Controls
 st.sidebar.header("Simulation Controls")
 time_quantum = st.sidebar.number_input("Time Quantum", min_value=1, value=3)
 start_btn = st.sidebar.button("Start Simulation")
 reset_btn = st.sidebar.button("Reset")
 
-# ------------------ Process Definitions ------------------
+#Process Definitions
 processes = [
     {"id": "P1", "burst_time": 8, "arrival_time": 0, "color": "#e91e63"},
     {"id": "P2", "burst_time": 5, "arrival_time": 2, "color": "#9c27b0"},
@@ -28,7 +28,7 @@ processes = [
     {"id": "P4", "burst_time": 6, "arrival_time": 6, "color": "#009688"},
 ]
 
-# ------------------ Initialize State ------------------
+#Initialize State
 if "process_data" not in st.session_state or reset_btn:
     st.session_state.process_data = [
         {
@@ -45,7 +45,7 @@ if "process_data" not in st.session_state or reset_btn:
     st.session_state.history_log = []  # Scrollable history log
     st.session_state.running = False
 
-# ------------------ Layout ------------------
+#Layout
 col1, col2, col3 = st.columns([1, 2, 1])
 
 with col1:
@@ -64,7 +64,7 @@ with col3:
     st.subheader("Statistics")
     stats_container = st.empty()
 
-# ------------------ Helper Functions ------------------
+#Helper Functions
 def render_processes():
     html = ""
     for p in st.session_state.process_data:
@@ -113,7 +113,7 @@ def render_stats():
     """
     stats_container.markdown(html, unsafe_allow_html=True)
 
-# ------------------ Simulation ------------------
+#Simulation
 if start_btn and not st.session_state.running:
     st.session_state.running = True
     while any(p["remaining_time"] > 0 for p in st.session_state.process_data):
